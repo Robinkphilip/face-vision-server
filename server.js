@@ -11,8 +11,28 @@ const app=express()
 app.use(express.json());
 app.use(cors())
 
+const db =knex({
+    client: 'pg',
+    version: '7.2',
+    connection: {
+      host : '127.0.0.1',
+      port : 5433,
+      user : 'robinkphilip',
+      password : '',
+      database : 'facevision'
+    }
+  });
 
-
+  db.select('*').from('users')
+  .then(rows => {
+    console.log(rows);
+  })
+  .catch(error => {
+    console.error(error);
+  })
+  .finally(() => {
+    db.destroy();
+  });
 
 app.use("/",userRoutes)
 
