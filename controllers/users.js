@@ -1,60 +1,85 @@
 import bcrypt from "bcrypt"
 
 
-const db = {
-    users:[
-       {
-            id:'123',
-            name:"robin",
-            email:"robin@gmail.com",
-            password:"robin123",
-            entrie:5,
-            joined: new Date() 
-        },
-        {
-            id:'124',
-            name:"subin",
-            email:"subin@gmail.com",
-            password:"subin123",
-            entrie:3,
-            joined: new Date() 
-        }
-    ]
+import knex from "knex"
+
+const db =knex({
+    client: 'pg',
+    version: '7.2',
+    connection: {
+        host : '127.0.0.1',
+        port : 5433,
+        user : 'robinkphilip',
+        password : '',
+        database : 'facevision'
     }
+});
  
-export const getUsers=(req,res)=>{
-   return res.send(db.users)
-
-
-
-}
 
 
 export const logIn =(req,res)=>{
-const {id,email,password} =req.body
-if (!id && !email && !password) {
-    return res.status(400).json("empty req");
-  }
-if(email===db.users[0].email && password===db.users[0].password ){
-    res.status(200).json("login success")
-}else{
-     res.status(200).json("input incorrect")
-}
-}
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json("incorrect input");
+    }
+    db.select("email", "hash")
+      .from("login")
+      .where("email", "=", email)
+      .then((data) => {
+        const isValid = bcrypt.compareSync(password, data[0].hash);
+        if (isValid) {
+          return db
+            .select("*")
+            .from("users")
+            .where("email", "=", email)
+            .then((user) => {
+              res.json(user[0]);
+            })
+            .catch((err) => res.status(400).json("unable to get user"));
+        } else {
+          res.status(400).json("This is due towrong credentials");
+        }
+      })
+      .catch((err) => res.status(400).json("wrong credentials"));
+    }
+
 export const register =async(req,res)=>{
     const {name,email,password} =req.body
-   const hash= await bcrypt.hash(password,10)
-    if(!name &&!email&&!password){
-       return res.json("rempty input")
+    const hash= await bcrypt.hash(password,10)
+    if(!name &&!email &&!password){
+        return res.json("rempty input")
     }
-    db.users.push({  
-            id:'125',
+
+    db.transaction(trx=>{
+        trx.insert({
+            hash:hash,
+            email:email
+        })
+    .into('login')
+    .returning('email')
+    .then(loginEmail=>{
+         trx("users")
+        .returning("*")
+        .insert({
+            email:loginEmail[0].email,
             name:name,
-            email:email,
-            password:hash,
-            joined: new Date() ,
+            joined: new Date()
+        }).then(user=>{
+            res.json(user[0])
+        })
+    }).then(trx.commit)
+    .catch(trx.rollback)
+}).catch(err=>{
+    res.status(400).json("unable register")
+})
+}
 
-    })
-    res.json(db.users[db.users.length-1])
-    }
-
+export const handleImages =(req,res)=>{
+    const { id } = req.body;
+    db("users")
+      .where("id", "=", id)
+      .increment("entries", 1)
+      .returning("entries")
+      .then((entries) => res.json(entries[0].entries))
+      .catch((err) => res.status(400).json("unable to count"));
+}
