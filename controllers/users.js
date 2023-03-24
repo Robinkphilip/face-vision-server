@@ -11,7 +11,7 @@ const db =knex({
         port : 5433,
         user : 'robinkphilip',
         password : '',
-        database : 'facevision'
+        database : 'robinkphilip'
     }
 });
  
@@ -70,7 +70,7 @@ export const register =async(req,res)=>{
     }).then(trx.commit)
     .catch(trx.rollback)
 }).catch(err=>{
-    res.status(400).json("unable register")
+    res.status(400).json("errror")
 })
 }
 
@@ -81,5 +81,5 @@ export const handleImages =(req,res)=>{
       .increment("entries", 1)
       .returning("entries")
       .then((entries) => res.json(entries[0].entries))
-      .catch((err) => res.status(400).json("unable to count"));
+      .catch((err) => res.status(400).json(err));
 }
